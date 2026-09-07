@@ -1,0 +1,44 @@
+# Fixture: the ciotcfg component composed the way a device composes it — on top of core + wifi +
+# criotive_mqtt + ota. MQTT is not optional here: ciotcfg exists to write into the MQTT client, and
+# without `mqtt:` the component's DEPENDENCIES refuse the config outright.
+#
+# esp-idf on purpose. It is what `framework_variant` defaults to, it is what criotive_mqtt's
+# `idf_send_async` needs, and it is the framework a fleet image is built with.
+#
+# criotive_mqtt still carries mqtt_username / mqtt_password here. This fixture proves the partition
+# is registered and the component compiles alongside them; taking them out of the contract is a
+# separate, breaking change.
+substitutions:
+  device_name: ciotcfg-testdev
+  firmware_version: "0.0.0-test"
+  wifi_ssid: test-ssid
+  wifi_password: test-wifi-password
+  wifi_ap_password: test-ap-password
+  criotive_env: prod
+  mqtt_username: test-mqtt-user
+  mqtt_password: test-mqtt-password
+  # criotive_mqtt's on_connect stops ota.yaml's script_rollback by id, so the two modules cannot be
+  # imported apart.
+  ota_password: test-ota-password
+  ota_http_server: ota.test.invalid/blobs/
+
+esp32:
+  board: esp32dev
+  framework:
+    type: ${framework_variant}
+
+packages:
+  criotive:
+    url: https://github.com/junioteixeira/test-esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ota.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
+        vars: {sdk_ref: __SDK_REF__}
