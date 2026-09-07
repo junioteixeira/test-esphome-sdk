@@ -14,9 +14,6 @@ substitutions:
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
   wifi_ap_password: test-ap-password
-  criotive_env: prod
-  mqtt_username: test-mqtt-user
-  mqtt_password: test-mqtt-password
   # criotive_mqtt's on_connect stops ota.yaml's script_rollback by id, so the two
   # modules cannot be imported apart.
   ota_password: test-ota-password
@@ -73,6 +70,8 @@ packages:
       - path: modules/wifi.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/ota.yaml
         vars: {sdk_ref: __SDK_REF__}
