@@ -13,9 +13,6 @@ substitutions:
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
   wifi_ap_password: test-ap-password
-  criotive_env: prod
-  mqtt_username: test-mqtt-user
-  mqtt_password: test-mqtt-password
   ota_password: test-ota-password
   ota_http_server: ota.test.invalid/blobs/
 
@@ -30,6 +27,8 @@ packages:
       - path: modules/wifi.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/ota.yaml
         vars: {sdk_ref: __SDK_REF__}

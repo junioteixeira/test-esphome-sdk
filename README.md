@@ -74,10 +74,6 @@ the modules it imports.
 | `wifi_password_3` | no | *(empty)* | required once slot 3 has an SSID |
 | `wifi_ap_password` | **yes** | — | fallback AP; **no default, ever** |
 | `wifi_reboot_timeout` | no | `0s` _(safety)_ | *(`wifi.yaml`)* — `0s` **disables** the WiFi reboot (offline survival) |
-| `criotive_env` | **yes** | — | *(`criotive_mqtt.yaml`)* — `prod` or `hmg`; selects broker host, TLS port and trust anchor together — see below |
-| `mqtt_username` | **yes** | — | **no default, ever** |
-| `mqtt_password` | **yes** | — | **no default, ever** |
-| `mqtt_client_id` | no | `${device_name}` _(convenience)_ | MQTT client id; independent of `topic_prefix` — set it explicitly when a deployment needs a specific value — see below |
 | `mqtt_reboot_timeout` | no | `0s` _(safety)_ | `0s` **disables** the MQTT reboot (offline survival) |
 | `mqtt_discovery` | no | `true` _(convenience)_ | Home Assistant discovery |
 | `ota_password` | **yes** | — | *(`ota.yaml`)* — **no default, ever** |
@@ -95,14 +91,15 @@ protective posture — offline survival (`*_reboot_timeout: 0s`), production-qui
 not be overridden without a specific reason; the same holds for the hardware-file safety defaults
 (`framework_variant: esp-idf` and `ota_rollback: true`, which ship OTA rollback protection, and
 `can_resistor_status: ALWAYS_ON`). A **convenience** default is just a sensible starting value
-(`mqtt_client_id`, `mqtt_discovery`, `logger_hardware_uart`, `ota_http_server_test`) that a device
-overrides freely.
+(`mqtt_discovery`, `logger_hardware_uart`, `ota_http_server_test`) that a device overrides freely.
 
-**No credential has a default.** A default password in a public repo is a default password in every
-device that forgets to override it; a missing required substitution must fail validation loudly, and
-the PR-time `esphome config` check plus the negative-fixture harness prove it does. The broker
-*address* is the opposite case and is not a credential: it is fixed by `criotive_env` rather than
-supplied per device, so there is nothing to leak and nothing to get silently wrong.
+**No credential has a default, and no credential is a substitution at all.** A default password in a
+public repo is a default password in every device that forgets to override it — and a *supplied*
+password is a password compiled into an image that can then serve only the one device it was
+compiled for. Neither problem exists now: the broker, its port, the credentials, the client id, the
+topic prefix and the trust anchor all arrive at runtime from the `ciotcfg` partition. The
+substitutions that remain required (`ota_password`, `wifi_ap_password`) still have no default, and
+the negative-fixture harness still proves each one fails validation when omitted.
 
 ### Up to three WiFi networks — and the provisioning-only mode
 
@@ -252,78 +249,52 @@ required substitution to a free-form field must apply this guard** (`criotive_mq
 omitted, and `scripts/check-negative.sh` (wired into `validate.yml`) asserts every negative fixture
 exits non-zero.
 
-### `criotive_env` — the broker, the port and the CA move together
+### The MQTT identity comes from the `ciotcfg` partition
 
-An SDK device talks to a criotive broker, and **`criotive_env` is the only knob that chooses which
-one.** It takes `prod` or `hmg`, and the module derives all three connection facts from it:
+An SDK device is told who it is at flash time, not at compile time. `modules/ciotcfg.yaml` registers
+a 128 KB data partition called `ciotcfg` and reads a record out of it at `setup_priority::BUS` —
+ahead of the MQTT client's own `AFTER_WIFI` setup — writing seven values into the client before it
+connects: broker address, port, username, password, client id, topic prefix, and the CA certificate
+that validates the broker.
 
-| `criotive_env` | broker | port | trust anchor |
-|---|---|---|---|
-| `prod` | `broker.criotive.io` | 8883 | `CN = c-iot Hub CA` (RSA-4096) |
-| `hmg` | `dev-hmg.c-iot.io` | 8883 | `CN = HMG Root CA` (RSA-2048) |
+**That is why `criotive_mqtt.yaml` takes no credentials and pins no host.** It declares `broker:
+"0.0.0.0"` because ESPHome's schema requires the key, and nothing else. One compiled image can
+therefore serve an entire fleet, and the same image can serve more than one environment: the host and
+the anchor that validates it travel together in the record instead of being derived from a
+compile-time switch.
 
-They move together because they are not independently valid: a host without its matching anchor
-cannot complete a handshake, and the two environments are signed by **different** private CAs, so
-mixing one env's host with the other's certificate fails every connection. Binding them to a single
-substitution means the supported surface cannot express that mismatch — one knob moves all three, so
-there is no way to get half of a switch by editing one value and forgetting another.
+**The anchor still moves with the host** — that requirement did not go away, it moved. A broker
+address and a trust anchor are not independently valid: they are signed by different private CAs, so
+pairing one deployment's host with another's certificate fails every handshake. What changed is where
+the pairing is enforced. It used to be a `1/0` guard in this file; it is now the responsibility of
+whatever writes the record, which is the only thing that knows which deployment a given device
+belongs to.
 
-Both PEMs ship in `criotive_mqtt.yaml`. They are public material — a CA certificate is what a broker
-hands to anyone who opens a TLS connection — and the selection resolves at config time, so only the
-chosen environment's certificate reaches the binary and the other costs no flash.
+**Port `8883` does not enable TLS, and neither does anything in this repository.**
+`mqtt_backend_esp32` selects `MQTT_TRANSPORT_OVER_SSL` when `ca_certificate_` holds a value and
+`MQTT_TRANSPORT_OVER_TCP` when it does not, at runtime. The certificate in the record is what
+encrypts the transport. A record without a usable `ca` is refused outright rather than downgraded.
 
-**Port `8883` does not enable TLS.** ESPHome calls `set_ca_certificate` only when
-`certificate_authority` is present in the config; without it the transport is plain TCP whatever the
-port, and a config that sets `8883` and no CA sends credentials in the clear. The anchor above, not
-the port number, is what makes the transport encrypted.
+**Failure is closed, and loud.** A missing partition, an absent or corrupt record, a format version
+this firmware does not understand, or any required field blank — each disables MQTT entirely and
+marks the component failed. The client is never enabled, so it never dials the placeholder address:
 
-Both failure modes are loud and happen at validation time, never at runtime on a device in the
-field: **a missing `criotive_env`** trips the `1/0` guard naming the substitution, and **a value that
-is not a deployment we run** trips the `else 1/0` branch of each mapping, which reports the offending
-value (`criotive_env_selected = 'staging'`). `tests/negative/omit_criotive_env.yaml` and
-`tests/negative/invalid_criotive_env.yaml` pin both.
+```
+[E][ciotcfg:091]: 'ciotcfg' carries no record; the device was flashed without its credentials
+[E][ciotcfg:197]:   no usable identity; MQTT is disabled
+```
 
-This removes the *supported* path to a third-party broker; it does not prevent one. A consuming
-`main.yaml` merges over the package and can always write its own `mqtt:` keys — enforcement of who
-may connect lives at the broker, not in this repo. What the SDK guarantees is that the default,
-documented path reaches a criotive broker over TLS with the right anchor.
+**The client id is no longer a substitution.** It comes from the record, and it is deliberately kept
+independent of the topic prefix — some brokers require `client_id == username` and reject a mismatch
+at CONNACK, and some use the client id to namespace topics, so whoever writes the record decides both
+rather than deriving one from the other. Note that `set_topic_prefix()` does not rewrite the birth,
+will and shutdown topics: ESPHome derives those at code generation time, so the component sets all
+three explicitly from the record's prefix. Without that, every device sharing an image would report
+its availability on one topic.
 
-The same caveat covers this module's **internal** substitutions. `criotive_env_selected`,
-`criotive_ca_prod` and `criotive_ca_hmg` share the one global substitution namespace ESPHome gives
-every package, so a consumer that sets them wins — `criotive_env: hmg` alongside
-`criotive_env_selected: prod` really does connect to prod. They are not knobs: `criotive_env` is the
-input, these three are how the module computes from it, and overriding one is the same act as
-writing your own `mqtt:` block. Nothing accidental reaches them; a config has to name them to break
-the pairing.
-
-The certificates are long-lived (the prod anchor is valid to 2127, hmg to 2124), so this repo ships
-no expiry gate: there is nothing for one to detect within the service life of any device. The change
-worth watching for is a **rotation** — an anchor reissued out of band would break every pinned device
-at once — and detecting that is a possible follow-up, not something this version does.
-
-### `mqtt_client_id` — set it explicitly when a deployment needs a specific value
-
-The MQTT client id is **not** the topic prefix. `mqtt_client_id` sets the MQTT `client_id`; it
-defaults to `${device_name}` (so `client_id == topic_prefix` for the common case) and is overridden
-per device when a specific value is required. It is the SDK's own knob — the SDK does not otherwise
-depend on what a broker does with it, and only what the SDK owns is documented here.
-
-Whether the client id matters, and how, depends on the broker:
-
-- **Some brokers require `client_id == username`** and reject a mismatch at CONNACK. Others do not —
-  a broker whose authenticator matches, say, a client certificate's common name against the username
-  never compares the client id, so a device with `client_id != username` connects fine there.
-- **Some brokers use the client id to namespace topics**, so an unexpected id can misroute a
-  device's messages. Set `mqtt_client_id` explicitly when a deployment relies on either behaviour.
-
-`client_id` and `topic_prefix` are kept **independent**: a device may use a non-prefixed client id
-while keeping the device-name topic prefix, so `mqtt_client_id` is its own override and is never
-derived from the prefix. `criotive_mqtt.yaml` also sets `client_id` **explicitly** rather than
-relying on ESPHome's default — left unset, ESPHome (`mqtt/mqtt_client.cpp:44`) sets it to
-`${device_name}-<mac>`, which is unpredictable and can break both broker behaviours above.
-`tests/validate/mqtt_client_id.yaml` proves an overridden id resolves into `mqtt: client_id:` while
-`topic_prefix` stays `${device_name}`; `tests/validate/mqtt_ota.yaml` proves the default path
-resolves `client_id` to the device name.
+**A device already in the field does not gain this over the air.** The partition table is written
+only by the factory image, over serial; an OTA writes inside the app slot of the table already on the
+chip. Migrating an existing device means a cable.
 
 ### MQTT log publishing is off by default
 
@@ -336,7 +307,7 @@ whenever a `topic_prefix` is set, so merely deleting `log_topic` would leave eve
 its logs. Disabling requires the key to be **present but empty** — `log_topic:` with a null value —
 which drives the codegen branch `if not log_topic: disable_log_message()`. `esphome config` over
 `tests/validate/mqtt_ota.yaml` proves it: the dumped `mqtt:` shows `log_topic: null` and no `/debug`
-topic, the same standard by which the fixture proves the TLS `certificate_authority`.
+topic.
 
 **Opting in (per device).** A consumer that wants a device's logs on the broker sets **two** things
 in that device's config: its own `mqtt: log_topic:` block (which merges over the module's null) **and**
