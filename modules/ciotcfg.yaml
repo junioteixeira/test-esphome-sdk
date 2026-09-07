@@ -1,0 +1,22 @@
+# Per-device MQTT identity read from flash, so one compiled image can serve a whole fleet.
+#
+# Import this and the broker, credentials, client id, topic prefix and CA all come from the
+# `ciotcfg` partition that esptool writes at flash time — not from substitutions compiled into the
+# binary. The component runs at setup_priority::BUS, ahead of MQTT's own AFTER_WIFI setup, so every
+# value is in place before the first connection attempt.
+#
+# It is fail-closed: a missing, corrupt or incomplete record disables MQTT instead of letting
+# whatever the image was compiled with reach a broker.
+#
+# The partition is registered by the component, not by a `partitions:` list here. A config that
+# supplies `esp32: partitions:` as a FILE PATH takes over the whole table and ESPHome silently drops
+# every component-registered partition; the component refuses that config by name rather than
+# letting it flash and boot to nothing.
+external_components:
+  - source:
+      type: git
+      url: https://github.com/junioteixeira/test-esphome-sdk
+      ref: ${sdk_ref}
+    components: [ciotcfg]
+
+ciotcfg:
