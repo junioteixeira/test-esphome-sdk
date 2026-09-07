@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/junioteixeira/test-esphome-sdk/compare/v0.3.4...v0.4.0) (2026-09-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mqtt:** a consuming config must import modules/ciotcfg.yaml and the device must be flashed with a ciotcfg record. Remove criotive_env, mqtt_username, mqtt_password and mqtt_client_id from its substitutions. A device already in the field does not gain the partition over the air - the partition table is written only by the factory image, over serial.
+
+### Features
+
+* **ciotcfg:** read the per-device MQTT identity from a flash partition ([6f3df07](https://github.com/junioteixeira/test-esphome-sdk/commit/6f3df0799a71c4487c978efa06061b330f746966))
+* **ciotcfg:** read the per-device MQTT identity from a flash partition ([dc9144c](https://github.com/junioteixeira/test-esphome-sdk/commit/dc9144c0cbfb78fdf6e3b6e1ef4ae64fe7339c62))
+* **mqtt:** take the broker, credentials and CA from the ciotcfg partition ([0dbe39a](https://github.com/junioteixeira/test-esphome-sdk/commit/0dbe39ae21e9209ba95fdd503b783096757bf073))
+
 ## [0.3.4](https://github.com/criotive/esphome-sdk/compare/v0.3.3...v0.3.4) (2026-08-25)
 
 
