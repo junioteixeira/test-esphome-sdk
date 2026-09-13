@@ -152,6 +152,42 @@ Either way the captive-portal network **replaces** the configured slots rather t
 `WiFiComponent::start()` applies the saved credentials through `set_sta()`, which begins with
 `clear_sta()` (`wifi_component.cpp:1003`).
 
+### Improv — provisioning over the cable, and over BLE
+
+Two optional modules add [Improv](https://www.improv-wifi.com/) alongside the captive portal:
+`modules/improv_serial.yaml` for the USB cable and `modules/improv_ble.yaml` for Bluetooth LE.
+Neither replaces the fallback AP; they answer different moments.
+
+| | reaches the device | good for |
+|---|---|---|
+| captive portal | its own fallback AP, from anything with Wi-Fi | the field, months later, no cable |
+| `improv_serial` | the USB cable already attached | the flashing tool, the moment after it writes |
+| `improv_ble` | Bluetooth, no cable, no app | a board already inside an enclosure |
+
+Both are opt-in, and a device may import both — see `tests/validate/improv_serial_and_ble.yaml`.
+Improv only offers provisioning while the device has no network it can join, so on a device whose
+station slots are filled it is inert rather than broken, and `esp32_improv` waits out ESPHome's
+`wifi_timeout` (90s) before it starts advertising.
+
+**`improv_serial` needs a serial console, and `logger_baud_rate` defaults to `"0"`.** That default
+skips UART init entirely and Improv talks over the logger's UART, so a consumer must set a real baud
+rate. ESPHome catches it in final validation — `improv_serial requires the logger baud_rate to be
+not 0` — so the failure is loud and names its own cause.
+
+**On `hds_v1_1`, the console and SW1 are the same pin.** Both own GPIO1, and this one fails
+*silently*: the config validates, the board boots, and Improv never answers. Set
+`hds_v1_1_sw1_enabled: false` on that board. `hds_v1_0` has no SW1 and needs nothing.
+`tests/validate/improv_serial_hds_v1_1.yaml` is the fixture for exactly this trade.
+
+**`improv_ble` pins `authorizer: none`**, so any phone in range may provision a device that is not
+yet on a network — the same reach the fallback AP already grants, and the only setting that works
+for a board with no button exposed. A room that has a button and wants a physical press in the loop
+overrides `esp32_improv:` in its own config with an `authorizer:` naming that binary sensor.
+
+**BLE costs flash.** The stack is several hundred kilobytes on top of the image, and a project near
+its app partition fails to *link* rather than fail to validate — `esphome config` cannot see it, so
+the real compile in `release-gate.yml` is what proves it fits.
+
 ### A device never reboots through an outage — offline survival is an invariant
 
 **A device MUST continue operating indefinitely while offline, without rebooting.** Field devices on
