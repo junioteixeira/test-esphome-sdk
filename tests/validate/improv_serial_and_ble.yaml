@@ -1,0 +1,34 @@
+# Fixture: both Improv routes in one image, which is the combination a device gets when it should
+# be provisionable over the cable it was just flashed with AND from a phone once it is installed.
+# Riding hds_v1_0 keeps the serial console free — see improv_serial_hds_v1_1.yaml for the board
+# where it is not. This is also the heaviest fixture in the set: the BLE stack sits on top of MQTT
+# over TLS, so it is the one whose real compile in release-gate.yml proves the app still fits.
+substitutions:
+  device_name: improv-both-testdev
+  firmware_version: "0.0.0-test"
+  logger_level: INFO
+  logger_baud_rate: "115200"
+  wifi_ap_password: test-ap-password
+  ota_password: test-ota-password
+  ota_http_server: ota.test.invalid/blobs/
+
+packages:
+  criotive:
+    url: https://github.com/c-iot-systems/esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: hardware/hds_v1_0.yaml
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ota.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_serial.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_ble.yaml
+        vars: {sdk_ref: __SDK_REF__}
