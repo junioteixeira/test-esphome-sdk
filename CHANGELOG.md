@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/junioteixeira/test-esphome-sdk/compare/v0.3.4...v0.4.0) (2026-09-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mqtt:** a consuming config must import modules/ciotcfg.yaml and the device must be flashed with a ciotcfg record. Remove criotive_env, mqtt_username, mqtt_password and mqtt_client_id from its substitutions. A device already in the field does not gain the partition over the air - the partition table is written only by the factory image, over serial.
+
+### Features
+
+* **ciotcfg:** read the per-device MQTT identity from a flash partition ([6f3df07](https://github.com/junioteixeira/test-esphome-sdk/commit/6f3df0799a71c4487c978efa06061b330f746966))
+* **ciotcfg:** read the per-device MQTT identity from a flash partition ([dc9144c](https://github.com/junioteixeira/test-esphome-sdk/commit/dc9144c0cbfb78fdf6e3b6e1ef4ae64fe7339c62))
+* **improv:** provision over BLE with esp32_improv ([0b4dcdd](https://github.com/junioteixeira/test-esphome-sdk/commit/0b4dcdd182a56e8fdd7bac7665bb4c20ebdd0c27))
+* **improv:** provision over the serial cable with improv_serial ([8c58f02](https://github.com/junioteixeira/test-esphome-sdk/commit/8c58f02b6e0ed9709e2d3ff6857558309165b57b))
+* **improv:** provisioning over the serial cable and over BLE ([02f5c1c](https://github.com/junioteixeira/test-esphome-sdk/commit/02f5c1c4b4a018708cb33d652cee678f9710247e))
+* **mqtt:** take the broker, credentials and CA from the ciotcfg partition ([0dbe39a](https://github.com/junioteixeira/test-esphome-sdk/commit/0dbe39ae21e9209ba95fdd503b783096757bf073))
+
+
+### Documentation
+
+* **readme:** the two Improv routes next to the captive portal ([e546a5d](https://github.com/junioteixeira/test-esphome-sdk/commit/e546a5de46556316deb7ed15cd52d8f295c9dc05))
+
 ## [0.3.4](https://github.com/criotive/esphome-sdk/compare/v0.3.3...v0.3.4) (2026-08-25)
 
 
