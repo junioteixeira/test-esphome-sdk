@@ -1,0 +1,21 @@
+# Fixture: Improv over BLE with no station slot — the provisioning-only device a phone reaches
+# without a cable. It rides hds_v1_0 because BLE needs no pin at all, so nothing here has to be
+# traded away for it. The fallback AP stays configured: BLE is an additional route, not a
+# replacement for the captive portal.
+substitutions:
+  device_name: improv-ble-testdev
+  firmware_version: "0.0.0-test"
+  wifi_ap_password: test-ap-password
+
+packages:
+  criotive:
+    url: https://github.com/c-iot-systems/esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: hardware/hds_v1_0.yaml
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_ble.yaml
+        vars: {sdk_ref: __SDK_REF__}

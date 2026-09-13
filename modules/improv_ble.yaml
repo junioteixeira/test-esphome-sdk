@@ -1,0 +1,21 @@
+# Improv over Bluetooth LE: a phone provisions the device with no cable and no app, which is the
+# only route left once the board is installed in an enclosure.
+#
+# `esp32_improv` pulls the BLE server in on its own (ESPHome AUTO_LOADs `esp32_ble_server`), so
+# there is no `esp32_ble_tracker:` to declare here — adding one would build a second, unused BLE
+# stack.
+#
+# `authorizer` is REQUIRED by ESPHome and is pinned to `none` here, meaning any phone in range may
+# provision a device that is not yet on a network. That is the same reach the fallback AP already
+# grants, and it is the only setting that works for a board with no button exposed. A room that has
+# a button and wants provisioning gated behind a physical press overrides `esp32_improv:` in its own
+# config with an `authorizer:` naming that binary sensor.
+#
+# COSTS FLASH. The BLE stack is several hundred kilobytes on top of the image; a project already
+# close to its app partition will fail to link rather than fail to validate, so the real compile in
+# `release-gate.yml` is what proves it fits, not `esphome config`.
+#
+# BLE provisioning starts only after Wi-Fi has failed to connect (ESPHome's `wifi_timeout`, 90s by
+# default), so a device that joins a known network never advertises it.
+esp32_improv:
+  authorizer: none
