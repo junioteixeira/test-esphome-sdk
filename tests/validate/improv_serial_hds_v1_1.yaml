@@ -1,0 +1,25 @@
+# Fixture: Improv over serial on the one board where it costs something. hds_v1_1 wires SW1 to
+# GPIO1, which is also UART0 TX, so the console and the button are mutually exclusive — SW1 is
+# disabled here, and that is the whole point of the fixture. The baud rate is set for the same
+# reason logger_console.yaml sets it: core.yaml defaults it to "0", and improv_serial refuses a
+# logger that never opened its UART.
+substitutions:
+  device_name: improv-serial-hds-v11-testdev
+  firmware_version: "0.0.0-test"
+  logger_level: INFO
+  logger_baud_rate: "115200"
+  hds_v1_1_sw1_enabled: "false"
+  wifi_ap_password: test-ap-password
+
+packages:
+  criotive:
+    url: https://github.com/c-iot-systems/esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: hardware/hds_v1_1.yaml
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_serial.yaml
+        vars: {sdk_ref: __SDK_REF__}

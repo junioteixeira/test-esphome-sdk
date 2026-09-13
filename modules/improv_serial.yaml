@@ -1,0 +1,22 @@
+# Improv over the serial console: the flashing tool that just wrote the image hands the device its
+# Wi-Fi credentials over the same USB cable, so the passphrase never travels through a config, a
+# ticket or anyone's clipboard.
+#
+# Complements the fallback AP and captive portal in `wifi.yaml` rather than replacing them. Improv
+# answers the moment after a flash, while the cable is still attached; the captive portal answers
+# months later in the field, when the network changed and nobody has a cable. A device that imports
+# both offers whichever the person in front of it can actually use.
+#
+# REQUIRES A SERIAL CONSOLE. `core.yaml` defaults `logger_baud_rate` to "0", which skips UART init
+# entirely, and Improv talks over the logger's UART — so a consumer of this module must set a real
+# baud rate. ESPHome enforces it in final validation ("improv_serial requires the logger baud_rate
+# to be not 0"), so the failure is loud and names its own cause; nothing is re-guarded here.
+#
+# ON hds_v1_1 THE CONSOLE AND SW1 ARE THE SAME PIN. Both own GPIO1, and unlike the baud rate this
+# one fails SILENTLY: the config validates, the board boots, and Improv never answers. Set
+# `hds_v1_1_sw1_enabled: false` on that board — see `tests/validate/improv_serial_hds_v1_1.yaml`.
+# hds_v1_0 has no SW1 and needs nothing.
+#
+# Improv only offers provisioning while the device has no network it can join, so on a device whose
+# station slots are filled it is inert by design rather than broken.
+improv_serial:
