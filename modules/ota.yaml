@@ -84,6 +84,30 @@ text_sensor:
     update_interval: never
 
 script:
+  # The platform's own OTA route. criotive_mqtt dispatches the command that
+  # carries these, the same direction its on_connect already reaches in here for
+  # script_rollback: the mqtt module owns the subscription, this one owns what
+  # an update does. Everything needed to fetch and verify the image arrives at
+  # runtime, which is what lets one build serve a fleet.
+  - id: script_ota_from_command
+    parameters:
+      url: string
+      md5: string
+      device_id: string
+      ticket: string
+    then:
+      - delay: 1s # Allow MQTT to publish status before the flash blocks the loop.
+      # username/password rather than credentials spliced into the URL: the
+      # action embeds them itself, and where they end up is the point.
+      # ota_http_request logs the URL at ESP_LOGI and the authenticated form only
+      # at ESP_LOGVV -- and the platform ingests and stores device logs, so a
+      # ticket in the path would become a credential in its own database.
+      - ota.http_request.flash:
+          url: !lambda 'return url;'
+          md5: !lambda 'return md5;'
+          username: !lambda 'return device_id;'
+          password: !lambda 'return ticket;'
+
   - id: perform_ota_update
     parameters:
       server_prefix: string
