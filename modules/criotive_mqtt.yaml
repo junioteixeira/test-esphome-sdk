@@ -1,6 +1,11 @@
 substitutions:
   # Never reboot solely because MQTT is unavailable.
   mqtt_reboot_timeout: 0s
+  # On criotive's mounted listeners the device subscribes to the bare topic and
+  # the broker scopes it under the cloud id. Brokers without a mountpoint can
+  # override this with a device-prefixed topic for bench testing. Mirrors
+  # location_system_command_topic, which is the same topic for the same reason.
+  mqtt_system_command_topic: command
   mqtt_discovery: "true"
 
 mqtt:
@@ -30,6 +35,40 @@ mqtt:
   # forced reconnects and ~40 entities: main-loop worst case 1578ms -> 352ms.
   idf_send_async: true
   log_topic: # Publishing logs is opt-in.
+
+  # Downlink system commands. The subscription lives here because this module
+  # owns the `mqtt:` block -- a second one in another module would have to wire
+  # reboot_timeout of its own or silently restore ESPHome's 15min default, which
+  # check-offline-survival.sh refuses. What each command DOES lives in the module
+  # that owns it.
+  on_json_message:
+    - topic: ${mqtt_system_command_topic}
+      # The platform publishes at QoS 1 and ESPHome's default here is 0. A
+      # subscription at 0 lets the broker downgrade delivery, so a command would
+      # be dropped on a weak link with nothing to show for it: the platform
+      # reports a successful publish and the device never heard it.
+      qos: 1
+      then:
+        - if:
+            condition:
+              # Every field is checked before any is used. Other system commands
+              # arrive on this same topic, and a partial ota payload must be
+              # ignored rather than half-acted on -- flashing with an empty md5
+              # downloads the whole image and only then refuses it.
+              - lambda: |-
+                  return x["command"] == "ota" &&
+                         x["url"].is<const char *>() &&
+                         x["md5"].is<const char *>() &&
+                         x["deviceId"].is<const char *>() &&
+                         x["ticket"].is<const char *>();
+            then:
+              - script.execute:
+                  id: script_ota_from_command
+                  url: !lambda 'return x["url"].as<std::string>();'
+                  md5: !lambda 'return x["md5"].as<std::string>();'
+                  device_id: !lambda 'return x["deviceId"].as<std::string>();'
+                  ticket: !lambda 'return x["ticket"].as<std::string>();'
+
   on_connect:
     - then:
         - delay: 2s
