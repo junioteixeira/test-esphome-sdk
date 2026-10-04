@@ -1,0 +1,44 @@
+# The fallback access point and its captive portal: a device that cannot join any network raises
+# "criotive - <device_name>" for 30s and serves a page that takes new Wi-Fi credentials.
+#
+# Opt-in, and the password is REQUIRED with no default. ESPHome's captive_portal AUTO_LOADs
+# `ota.web_server` (ESPHome 2026.9.1, captive_portal/__init__.py), so the portal also accepts a
+# firmware upload with no authentication of its own. An open AP would therefore let anyone in radio
+# range flash an offline device -- and the replacement image can read the ciotcfg partition, which
+# holds the broker credentials. Improv grants far less: Wi-Fi credentials only.
+#
+# The password is compiled into the image, so every device built from one config shares it. Treat
+# it as a fleet secret, not a per-device one.
+substitutions:
+  # Never reboot solely because Wi-Fi is unavailable. Declared here as well as
+  # in wifi.yaml because this module's `wifi:` block stands on its own.
+  wifi_reboot_timeout: 0s
+
+wifi:
+  reboot_timeout: ${wifi_reboot_timeout}
+  ap:
+    ssid: "criotive setup"
+    password: "${ wifi_ap_password if wifi_ap_password is defined else 1/0 }"
+    ap_timeout: 30s
+
+captive_portal:
+
+esphome:
+  on_boot:
+    - priority: 600
+      then:
+        - lambda: |-
+            std::string name = App.get_name();
+            std::string ap_ssid = "criotive - " + name;
+            const size_t max_size = 31;
+            if (ap_ssid.length() > max_size) {
+              // Preserve the unique device-name suffix when shortening.
+              ap_ssid = name;
+              if (ap_ssid.length() > max_size) {
+                ap_ssid = ap_ssid.substr(ap_ssid.length() - max_size);
+              }
+            }
+            // Preserve generated credentials and replace only the SSID.
+            wifi::WiFiAP wifi_wifiap = wifi::global_wifi_component->get_ap();
+            wifi_wifiap.set_ssid(ap_ssid);
+            wifi::global_wifi_component->set_ap(wifi_wifiap);

@@ -10,39 +10,15 @@ substitutions:
   wifi_password_3: ""
 
 wifi:
-  # Each optional slot requires both SSID and password.
+  # Each optional slot requires both SSID and password. With every slot empty
+  # the device needs a provisioning route -- improv_serial, improv_ble or
+  # wifi_ap -- or ESPHome refuses the config.
   networks: >-
     ${ ([{'ssid': wifi_ssid,   'password': wifi_password  }] if wifi_ssid   else ([] if not wifi_password   else 1/0))
      + ([{'ssid': wifi_ssid_2, 'password': wifi_password_2}] if wifi_ssid_2 else ([] if not wifi_password_2 else 1/0))
      + ([{'ssid': wifi_ssid_3, 'password': wifi_password_3}] if wifi_ssid_3 else ([] if not wifi_password_3 else 1/0)) }
   reboot_timeout: ${wifi_reboot_timeout}
   power_save_mode: none
-  ap:
-    ssid: "criotive setup"
-    password: "${ wifi_ap_password if wifi_ap_password is defined else 1/0 }"
-    ap_timeout: 30s
-
-captive_portal:
-
-esphome:
-  on_boot:
-    - priority: 600
-      then:
-        - lambda: |-
-            std::string name = App.get_name();
-            std::string ap_ssid = "criotive - " + name;
-            const size_t max_size = 31;
-            if (ap_ssid.length() > max_size) {
-              // Preserve the unique device-name suffix when shortening.
-              ap_ssid = name;
-              if (ap_ssid.length() > max_size) {
-                ap_ssid = ap_ssid.substr(ap_ssid.length() - max_size);
-              }
-            }
-            // Preserve generated credentials and replace only the SSID.
-            wifi::WiFiAP wifi_wifiap = wifi::global_wifi_component->get_ap();
-            wifi_wifiap.set_ssid(ap_ssid);
-            wifi::global_wifi_component->set_ap(wifi_wifiap);
 
 text_sensor:
   - platform: wifi_info

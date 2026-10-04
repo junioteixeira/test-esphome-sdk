@@ -30,6 +30,10 @@ external_components:
       ref: ${sdk_ref}
     components: [ack_button]
 
+# `platform: safe_mode` below needs the component. Empty here, so the settings
+# ota.yaml gives it win whichever order the two are imported in.
+safe_mode:
+
 button:
   # The delay is what makes the acknowledgement survive. Publishing it before the
   # automation fixes the ORDER, not the delivery: `publish()` only queues, and
