@@ -2,15 +2,18 @@
 # Wi-Fi credentials over the same USB cable, so the passphrase never travels through a config, a
 # ticket or anyone's clipboard.
 #
-# Complements the fallback AP and captive portal in `wifi.yaml` rather than replacing them. Improv
+# Complements the fallback AP and captive portal in `wifi_ap.yaml` rather than replacing them. Improv
 # answers the moment after a flash, while the cable is still attached; the captive portal answers
 # months later in the field, when the network changed and nobody has a cable. A device that imports
 # both offers whichever the person in front of it can actually use.
 #
-# REQUIRES A SERIAL CONSOLE. `core.yaml` defaults `logger_baud_rate` to "0", which skips UART init
-# entirely, and Improv talks over the logger's UART — so a consumer of this module must set a real
-# baud rate. ESPHome enforces it in final validation ("improv_serial requires the logger baud_rate
-# to be not 0"), so the failure is loud and names its own cause; nothing is re-guarded here.
+# OPENS THE SERIAL CONSOLE. Improv talks over the logger's port, and `core.yaml` defaults
+# `logger_baud_rate` to "0", which skips its init. A baud rate of 0 is the one value improv_serial can
+# never work with, so this module turns it into 115200 and leaves any non-zero rate a device chose
+# alone. The port is ESPHome's own default for the variant (see `core.yaml`): the native USB port on
+# an ESP32-S3 or C3, UART0 on an ESP32. Import it AFTER core.yaml -- a later package's `logger:`
+# overrides an earlier one, so listed first it is overridden back to 0, and ESPHome refuses the
+# config ("improv_serial requires the logger baud_rate to be not 0").
 #
 # ON hds_v1_1 THE CONSOLE AND SW1 ARE THE SAME PIN. Both own GPIO1, and unlike the baud rate this
 # one fails SILENTLY: the config validates, the board boots, and Improv never answers. Set
@@ -20,3 +23,6 @@
 # Improv only offers provisioning while the device has no network it can join, so on a device whose
 # station slots are filled it is inert by design rather than broken.
 improv_serial:
+
+logger:
+  baud_rate: "${ logger_baud_rate if logger_baud_rate | int > 0 else 115200 }"

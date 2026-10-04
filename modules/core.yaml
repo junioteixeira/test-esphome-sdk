@@ -1,7 +1,6 @@
 substitutions:
   logger_level: NONE
   logger_baud_rate: "0" # Serial off by default; frees GPIO1.
-  logger_hardware_uart: UART0
   framework_variant: esp-idf
   # Arduino builds must set this to "false".
   ota_rollback: "true"
@@ -29,10 +28,13 @@ globals:
 preferences:
   flash_write_interval: 3s
 
+# No hardware_uart: ESPHome then picks each variant's own console -- UART0 on
+# the ESP32, the native USB-Serial/JTAG port on the S3 and C3 -- which is the
+# port improv_serial must answer on. A device whose console is elsewhere sets
+# `logger: hardware_uart:` in its own config.
 logger:
   level: ${logger_level}
   baud_rate: ${logger_baud_rate}
-  hardware_uart: ${logger_hardware_uart}
 
 time:
   - platform: sntp
