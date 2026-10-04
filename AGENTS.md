@@ -134,6 +134,7 @@ CI runs `--self-test` before the real check, so a gate that has been silently de
 | `check-button-platform.sh` | a button the platform can see (not `internal: true`) is an `ack_button`, so it can acknowledge |
 | `check-offline-survival.sh` | `reboot_timeout` defaults are `0s` — a device never reboots through an outage |
 | `check-rollback-timing.sh` | `safe_mode` confirms after the OTA rollback watchdog |
+| `check-ota-url-only.sh` | the OTA download sends no credentials, and the log tags that print its url stay silenced |
 | `check-negative.sh` | every required substitution actually fails validation when omitted |
 | `check-contract-diff.sh` | a breaking substitution-contract change must be committed as breaking |
 | `check-public-naming.sh` | no internal issue key or tracker link in branch, PR title, PR body or commit subject; PR title and subjects are Conventional Commits |

@@ -6,8 +6,9 @@
 # stack.
 #
 # `authorizer` is REQUIRED by ESPHome and is pinned to `none` here, meaning any phone in range may
-# provision a device that is not yet on a network. That is the same reach the fallback AP already
-# grants, and it is the only setting that works for a board with no button exposed. A room that has
+# give Wi-Fi credentials to a device that is not yet on a network. That is all it grants -- unlike
+# the fallback AP's captive portal (`wifi_ap.yaml`), Improv carries no firmware upload -- and it is
+# the only setting that works for a board with no button exposed. A room that has
 # a button and wants provisioning gated behind a physical press overrides `esp32_improv:` in its own
 # config with an `authorizer:` naming that binary sensor.
 #

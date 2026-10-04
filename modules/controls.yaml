@@ -26,9 +26,13 @@
 external_components:
   - source:
       type: git
-      url: https://github.com/c-iot-systems/esphome-sdk
+      url: https://github.com/junioteixeira/test-esphome-sdk
       ref: ${sdk_ref}
     components: [ack_button]
+
+# `platform: safe_mode` below needs the component. Empty here, so the settings
+# ota.yaml gives it win whichever order the two are imported in.
+safe_mode:
 
 button:
   # The delay is what makes the acknowledgement survive. Publishing it before the

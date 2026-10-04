@@ -1,6 +1,10 @@
 substitutions:
   ota_attempts: "50"
-  ota_http_server_test: ${ota_http_server}
+  # Empty removes the native ESPHome OTA port (3232) instead of opening it: an
+  # esphome OTA with no password lets anyone on the LAN flash the device, and
+  # through it read the ciotcfg partition's broker credentials. The platform's
+  # own update route is the MQTT `ota` command below, which needs no port.
+  ota_password: ""
   # ESPHome defaults to 4.5s, which also bounds the blocking
   # esp_http_client_open()/fetch_headers() before the download loop -- where an
   # OTA over a weak TLS link dies, after publishing "OTA start".
@@ -17,9 +21,23 @@ esphome:
       then:
         - script.execute: script_rollback
 
+logger:
+  logs:
+    # The platform's OTA url carries a single-use ticket in its query string,
+    # and the platform ingests what a device logs. ESPHome 2026.9.1 prints a
+    # failing request's full url under `http_request` (http_request_idf.cpp:221
+    # at ERROR; http_request_arduino.cpp:85,142,150) and the OTA url under
+    # `http_request.ota` at INFO (ota_http_request.cpp:95). A tag may not be
+    # more verbose than the global level, so http_request.ota follows
+    # logger_level down to WARN and never past it.
+    http_request: NONE
+    http_request.ota: "${ logger_level | upper if logger_level | upper in ['NONE', 'ERROR', 'WARN'] else 'WARN' }"
+
 ota:
   - platform: esphome
-    password: "${ ota_password if ota_password is defined else 1/0 }"
+    id: ota_esphome
+    password: ${ota_password}
+  - id: !remove '${"ota_esphome" if not ota_password else false}'
 
   - platform: http_request
     on_begin:
@@ -37,9 +55,21 @@ ota:
           state: "OTA end"
       - delay: 1s # Allow MQTT to publish status.
     on_error:
+      # The serial and MQTT logs no longer carry http_request's own reason, so
+      # the status names the failure. Codes from ESPHome 2026.9.1:
+      # ota_http_request.h (0x10-0x12) and ota/ota_backend.h (0x80-0x94).
       - lambda: |-
-          char buffer[50];
-          snprintf(buffer, sizeof(buffer), "OTA update error %d", x);
+          const char *reason;
+          switch (x) {
+            case 0x10: reason = "md5 is not a valid digest"; break;
+            case 0x11: reason = "url is not http(s)"; break;
+            case 0x12: reason = "download failed: no connection, HTTP error status or read error"; break;
+            case 0x89: reason = "image does not fit the app partition"; break;
+            case 0x8B: reason = "image does not match the md5"; break;
+            default: reason = "update rejected by the OTA backend"; break;
+          }
+          char buffer[112];
+          snprintf(buffer, sizeof(buffer), "OTA update error %d: %s", x, reason);
           id(ota_status).publish_state(buffer);
 
 http_request:
@@ -50,33 +80,6 @@ http_request:
   # `esp32: watchdog_timeout: 60s` any value here narrows the watchdog instead
   # of widening it. Unset keeps the 60s: the option has no default.
 
-text:
-  - platform: template
-    name: "OTA HTTPS prod"
-    id: ota_https_prod
-    optimistic: true
-    min_length: 0
-    max_length: 255
-    mode: text
-    on_value:
-      - delay: 1s # Allow MQTT to publish status.
-      - script.execute:
-          id: perform_ota_update
-          binary_name: !lambda 'return x;'
-          server_prefix: !lambda |-
-            bool is_test = false;
-            for (size_t pos = x.find(".test"); pos != std::string::npos;
-                 pos = x.find(".test", pos + 1)) {
-              const size_t end = pos + 5;
-              if (end == x.size() || x[end] == '.') {
-                is_test = true;
-                break;
-              }
-            }
-            return std::string("https://") +
-                   (is_test ? "${ ota_http_server_test if ota_http_server_test is defined else 1/0 }"
-                            : "${ ota_http_server if ota_http_server is defined else 1/0 }");
-
 text_sensor:
   - platform: template
     name: "OTA status"
@@ -84,8 +87,8 @@ text_sensor:
     update_interval: never
 
 script:
-  # The platform's own OTA route. criotive_mqtt dispatches the command that
-  # carries these, the same direction its on_connect already reaches in here for
+  # The platform's OTA route. criotive_mqtt dispatches the command that carries
+  # these, the same direction its on_connect already reaches in here for
   # script_rollback: the mqtt module owns the subscription, this one owns what
   # an update does. Everything needed to fetch and verify the image arrives at
   # runtime, which is what lets one build serve a fleet.
@@ -93,36 +96,16 @@ script:
     parameters:
       url: string
       md5: string
-      device_id: string
-      ticket: string
     then:
       - delay: 1s # Allow MQTT to publish status before the flash blocks the loop.
-      # username/password rather than credentials spliced into the URL: the
-      # action embeds them itself, and where they end up is the point.
-      # ota_http_request logs the URL at ESP_LOGI and the authenticated form only
-      # at ESP_LOGVV -- and the platform ingests and stores device logs, so a
-      # ticket in the path would become a credential in its own database.
+      # No username/password. The url carries its own ticket, and the platform
+      # answers it with a redirect to blob storage: ESP-IDF 5.5.1 re-sends an
+      # Authorization header across that redirect, and the storage service
+      # rejects any request that has one. The url therefore reaches no log --
+      # see `logger: logs:` above.
       - ota.http_request.flash:
           url: !lambda 'return url;'
           md5: !lambda 'return md5;'
-          username: !lambda 'return device_id;'
-          password: !lambda 'return ticket;'
-
-  - id: perform_ota_update
-    parameters:
-      server_prefix: string
-      binary_name: string
-    then:
-      - if:
-          condition:
-            - lambda: 'return binary_name.find("${device_name}_") == 0 && binary_name.find(".factory") == std::string::npos;'
-          then:
-            - ota.http_request.flash:
-                md5_url: !lambda 'return server_prefix + binary_name + ".bin.md5";'
-                url: !lambda 'return server_prefix + binary_name + ".bin";'
-          else:
-            - lambda: |-
-                id(ota_status).publish_state("Error: this version is for another device");
 
   - id: script_rollback
     then:

@@ -12,13 +12,10 @@ substitutions:
   logger_baud_rate: "115200"
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
-  wifi_ap_password: test-ap-password
-  ota_password: test-ota-password
-  ota_http_server: ota.test.invalid/blobs/
 
 packages:
   criotive:
-    url: https://github.com/c-iot-systems/esphome-sdk
+    url: https://github.com/junioteixeira/test-esphome-sdk
     ref: __SDK_REF__
     files:
       - path: hardware/hds_v1_1.yaml

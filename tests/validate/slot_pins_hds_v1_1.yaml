@@ -9,7 +9,6 @@ substitutions:
   hds_v1_1_sw1_enabled: false
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
-  wifi_ap_password: test-ap-password
 
 binary_sensor:
   - platform: gpio
@@ -79,7 +78,7 @@ canbus:
 
 packages:
   criotive:
-    url: https://github.com/c-iot-systems/esphome-sdk
+    url: https://github.com/junioteixeira/test-esphome-sdk
     ref: __SDK_REF__
     files:
       - path: hardware/hds_v1_1.yaml

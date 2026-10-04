@@ -14,10 +14,12 @@ esp32:
 
 packages:
   criotive:
-    url: https://github.com/c-iot-systems/esphome-sdk
+    url: https://github.com/junioteixeira/test-esphome-sdk
     ref: __SDK_REF__
     files:
       - path: modules/core.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi_ap.yaml
         vars: {sdk_ref: __SDK_REF__}
