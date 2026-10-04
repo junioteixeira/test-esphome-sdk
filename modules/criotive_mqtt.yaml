@@ -54,20 +54,18 @@ mqtt:
               # Every field is checked before any is used. Other system commands
               # arrive on this same topic, and a partial ota payload must be
               # ignored rather than half-acted on -- flashing with an empty md5
-              # downloads the whole image and only then refuses it.
+              # downloads the whole image and only then refuses it. Any other
+              # field (`deviceId`, `ticket`, `version`) is tolerated and unused:
+              # the url carries the ticket itself.
               - lambda: |-
                   return x["command"] == "ota" &&
                          x["url"].is<const char *>() &&
-                         x["md5"].is<const char *>() &&
-                         x["deviceId"].is<const char *>() &&
-                         x["ticket"].is<const char *>();
+                         x["md5"].is<const char *>();
             then:
               - script.execute:
                   id: script_ota_from_command
                   url: !lambda 'return x["url"].as<std::string>();'
                   md5: !lambda 'return x["md5"].as<std::string>();'
-                  device_id: !lambda 'return x["deviceId"].as<std::string>();'
-                  ticket: !lambda 'return x["ticket"].as<std::string>();'
 
   on_connect:
     - then:

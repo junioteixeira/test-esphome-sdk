@@ -152,6 +152,11 @@ jobs:
           bash scripts/check-rollback-timing.sh --self-test
           bash scripts/check-rollback-timing.sh
 
+      - name: OTA url-only gate (no credentials on the download, no url in the logs)
+        run: |
+          bash scripts/check-ota-url-only.sh --self-test
+          bash scripts/check-ota-url-only.sh
+
       # The contract gate here compares against the last PUBLISHED tag, reading the commits
       # release-please will actually parse. The pull-request pass cannot stand in for it: it never
       # sees a direct push, and it inspects commits a squash merge could have rewritten.

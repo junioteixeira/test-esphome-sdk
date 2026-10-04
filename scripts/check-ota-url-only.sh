@@ -55,7 +55,7 @@ check_root() {
     hits="$(_flash_credentials "${files[@]}")"
     if [ -n "$hits" ]; then
       echo "check-ota-url-only: FAIL — ota.http_request.flash carries credentials; the url must carry the ticket:"
-      printf '  %s\n' "$hits"
+      printf '%s\n' "$hits" | sed 's/^/  /'
       rc=1
     fi
   fi
