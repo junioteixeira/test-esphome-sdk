@@ -7,10 +7,7 @@ substitutions:
   device_name: improv-both-testdev
   firmware_version: "0.0.0-test"
   logger_level: INFO
-  logger_baud_rate: "115200"
   wifi_ap_password: test-ap-password
-  ota_password: test-ota-password
-  ota_http_server: ota.test.invalid/blobs/
 
 packages:
   criotive:
@@ -21,6 +18,8 @@ packages:
       - path: modules/core.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi_ap.yaml
         vars: {sdk_ref: __SDK_REF__}
       - path: modules/criotive_mqtt.yaml
         vars: {sdk_ref: __SDK_REF__}

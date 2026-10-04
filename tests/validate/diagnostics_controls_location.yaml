@@ -5,7 +5,6 @@ substitutions:
   firmware_version: "0.0.0-test"
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
-  wifi_ap_password: test-ap-password
 
 esp32:
   board: esp32dev

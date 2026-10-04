@@ -1,11 +1,10 @@
 # Fixture: Improv over BLE with no station slot — the provisioning-only device a phone reaches
 # without a cable. It rides hds_v1_0 because BLE needs no pin at all, so nothing here has to be
-# traded away for it. The fallback AP stays configured: BLE is an additional route, not a
-# replacement for the captive portal.
+# traded away for it. No fallback AP: BLE is the only provisioning route here, which is also what
+# proves wifi.yaml accepts Improv in place of wifi_ap.yaml.
 substitutions:
   device_name: improv-ble-testdev
   firmware_version: "0.0.0-test"
-  wifi_ap_password: test-ap-password
 
 packages:
   criotive:

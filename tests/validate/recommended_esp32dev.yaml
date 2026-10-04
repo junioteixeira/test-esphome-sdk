@@ -1,0 +1,31 @@
+# Fixture: the bundle the platform recommends, on the esp32dev, with nothing but the substitutions a
+# device cannot do without. device_name is the author's; firmware_version is what the platform's
+# build injects. wifi_ap_password, ota_password and the station slots are absent on purpose: the
+# board joins Wi-Fi through improv_serial on the console ESPHome picks for its variant, the native
+# OTA port stays closed, and the platform updates it with the MQTT `ota` command.
+substitutions:
+  device_name: recommended-dev-testdev
+  firmware_version: "0.0.0-test"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: ${framework_variant}
+
+packages:
+  criotive:
+    url: https://github.com/junioteixeira/test-esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ota.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_serial.yaml
+        vars: {sdk_ref: __SDK_REF__}

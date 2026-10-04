@@ -37,7 +37,7 @@ substitutions:
 
 packages:
   criotive:
-    url: https://github.com/c-iot-systems/esphome-sdk
+    url: https://github.com/junioteixeira/test-esphome-sdk
     ref: __SDK_REF__
     files:
       - path: modules/core.yaml

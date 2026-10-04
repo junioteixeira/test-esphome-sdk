@@ -12,9 +12,6 @@ substitutions:
   logger_baud_rate: "115200"
   wifi_ssid: test-ssid
   wifi_password: test-wifi-password
-  wifi_ap_password: test-ap-password
-  ota_password: test-ota-password
-  ota_http_server: ota.test.invalid/blobs/
 
 packages:
   criotive:

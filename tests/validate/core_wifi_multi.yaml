@@ -9,7 +9,6 @@ substitutions:
   wifi_password_2: test-wifi-password-2
   wifi_ssid_3: test-ssid-3
   wifi_password_3: test-wifi-password-3
-  wifi_ap_password: test-ap-password
 
 esp32:
   board: esp32dev
