@@ -66,7 +66,7 @@ canbus:
 
 packages:
   criotive:
-    url: https://github.com/c-iot-systems/esphome-sdk
+    url: https://github.com/junioteixeira/test-esphome-sdk
     ref: __SDK_REF__
     files:
       - path: hardware/hds_v1_0.yaml

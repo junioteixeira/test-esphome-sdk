@@ -28,7 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLACEHOLDER='__SDK_REF__'
 # The SDK's own repo slug, used to scope package-shorthand ( github://owner/repo...@ref ) matching
 # to the SDK — a fixture may legitimately pull an unrelated third-party package at a pinned tag.
-SDK_REPO='c-iot-systems/esphome-sdk'
+SDK_REPO='junioteixeira/test-esphome-sdk'
 
 # Strip surrounding quotes, inline comments and flow-mapping punctuation from a captured YAML
 # scalar. A trailing flow close-brace is dropped only when it is NOT part of a ${...} expansion,
