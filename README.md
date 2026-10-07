@@ -347,10 +347,11 @@ physical-pin conflict the schema never sees — so it is stated here as a hardwa
 Merely *referencing* `${x}` does **not** make a substitution required. ESPHome 2026.5.1 runs the
 substitution pass non-strict (`components/substitutions/__init__.py`): an undefined `${x}` only logs
 a **warning** and leaves the literal text in place, so `esphome config` still exits 0 unless the
-leftover literal happens to break a field's schema. `device_name` is the lucky case — it lands in
-`esphome: name:`, whose identifier schema rejects the `${device_name}` literal. Every other required
-substitution lands in a free-form string field that accepts the literal, so each is wrapped in a
-guard:
+leftover literal happens to break a field's schema. Most required substitutions land in a free-form
+string field that accepts the literal, so each is wrapped in a guard — and so is `device_name`,
+although `esphome: name:` would reject the literal, because that schema check runs only after
+`external_components` are fetched: a config missing `device_name` would otherwise fail on the
+`sdk_boot` fetch first, and say nothing about the substitution it lacks:
 
 ```yaml
 password: "${ wifi_ap_password if wifi_ap_password is defined else 1/0 }"
@@ -489,8 +490,9 @@ it; the `ota` command above is the only remote update route.
 
 ### OTA rollback watchdog is offline-safe
 
-`ota.yaml` arms a 300s post-boot rollback watchdog and `criotive_mqtt.yaml` cancels it once the
-broker is reached — so a freshly-flashed image that cannot reach the broker rolls back to the last
+`ota.yaml` arms a 300s post-boot rollback watchdog from `sdk_boot` — never `esphome: on_boot`, which
+a device config can replace (see **The SDK's boot actions run from `sdk_boot:`**) — and
+`criotive_mqtt.yaml` cancels it once the broker is reached — so a freshly-flashed image that cannot reach the broker rolls back to the last
 known-good build. Audited against the offline-survival invariant: ESP-IDF's
 `esp_ota_mark_app_invalid_rollback_and_reboot()` does **not** check the running image's OTA state, so
 unguarded it would roll back even a **confirmed** image whenever a rollback target exists — rebooting
@@ -560,6 +562,36 @@ esphome:
 ```
 
 CI (`scripts/check-automation-syntax.sh`) enforces this across `modules/` and `hardware/`.
+
+### The SDK's boot actions run from `sdk_boot:`, never `esphome: on_boot:`
+
+The list form only protects the modules from **each other**. The device's own config is merged over
+them last, and ESPHome's `merge_config` (2026.9.1, `config_helpers.py`) returns the newer value
+outright whenever the two sides are not both lists. So a device config that writes its `on_boot` as
+a single mapping — the form ESPHome documents for one automation —
+
+```yaml
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - light.turn_on: status_light
+```
+
+replaces every module's `on_boot` list, with no warning and a build that succeeds. Up to v0.4.0 that
+is where `core.yaml` announced `firmware_version` and counted `boots`, and where `ota.yaml` armed the
+rollback watchdog: a device with such a block booted without telling the platform which version it
+runs, and a fresh OTA image ran without the watchdog.
+
+The modules therefore write their boot actions under **`sdk_boot:`**, the SDK's own component
+(`components/sdk_boot`). It takes the same automations as `on_boot` and runs them the same way —
+each is ESPHome's `StartupTrigger`, fired from `setup()` at its priority (default `600`) — but the
+key is the SDK's alone, so a device's `on_boot` never touches it. A device writes its own boot
+actions under `esphome: on_boot:`, in either form, and never under `sdk_boot:`: a mapping there
+would replace the SDK's entries exactly as it does under `on_boot`. Each module that uses `sdk_boot` declares its
+`external_components` itself, fetched at `${sdk_ref}` like every other component.
+`check-automation-syntax.sh` rejects an `on_boot` in `modules/` or `hardware/`, and
+`tests/validate/device_on_boot_mapping.yaml` is the config above, validated and compiled by CI.
 
 ## Versioning
 
@@ -642,21 +674,25 @@ restructuring the others.
 ### Shared modules
 
 - `core.yaml` — substitution contract, `esphome:`, device identity, firmware_version, boot counter,
-  `preferences`, `logger`, `time`/sntp. Mandatory for every device; imports nothing.
+  `preferences`, `logger`, `time`/sntp. Mandatory for every device; imports no other module. It
+  publishes `firmware_version` and increments `boots` from `sdk_boot` at setup, and MQTT re-sends
+  both on every (re)connect, because ESPHome resends each entity's current state when the client
+  connects.
 - `ciotcfg.yaml` — the `ciotcfg` partition and the component that writes the MQTT identity into the
   client before it connects. Needs `criotive_mqtt.yaml`.
 - `wifi.yaml` — `wifi:` with up to three station slots, wifi_info text sensors, wifi signal sensor.
   No provisioning route of its own: with every slot empty, import `improv_serial.yaml`,
   `improv_ble.yaml` or `wifi_ap.yaml`.
 - `wifi_ap.yaml` — the fallback access point (`criotive - <device_name>`), its captive portal and the
-  AP-name lambda. Requires `wifi_ap_password`; see **Improv**.
+  AP-name lambda, which runs from `sdk_boot`. Requires `wifi_ap_password`; see **Improv**.
 - `criotive_mqtt.yaml` — mqtt client, birth / last-will / shutdown messages, `on_connect`, and the
   system `command` subscription that dispatches the `ota` command. Needs `ota.yaml` and
   `ciotcfg.yaml`.
 - `ota.yaml` — `safe_mode`, the `http_request` OTA platform, the native ESPHome OTA platform only when
   `ota_password` is set, `ota_status`, `script_ota_from_command`, the rollback watchdog, and the log
   levels that keep the OTA url out of the logs. See **Updating over the air**. The rollback watchdog
-  armed on boot here is cancelled by `criotive_mqtt.yaml`'s `on_connect` once the broker is reached.
+  armed from `sdk_boot` here is cancelled by `criotive_mqtt.yaml`'s `on_connect` once the broker is
+  reached.
 - `improv_serial.yaml` — Improv over the serial console; opens the console at `115200` when
   `logger_baud_rate` is `0`. Import after `core.yaml`.
 - `improv_ble.yaml` — Improv over Bluetooth LE (`esp32_improv`, `authorizer: none`).
