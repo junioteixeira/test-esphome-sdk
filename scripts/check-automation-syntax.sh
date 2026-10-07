@@ -20,7 +20,17 @@
 #
 # This check fails when ANY `on_*` key in modules/ or hardware/ uses the mapping form. It is
 # deliberately not a fixed allow-list of trigger names: every automation-shaped `on_*` key is
-# subject to the same silent-collapse failure, so every one is checked.
+# subject to the same silent-collapse failure, so every one is checked. `sdk_boot:` is checked too:
+# it is an automation list under another name, and every module that runs something at boot writes
+# it.
+#
+# It also fails when a module or board writes `on_boot` at all. The list form only protects the
+# SDK's modules from EACH OTHER. The device's own config is merged over them last, and
+# `merge_config` (ESPHome 2026.9.1, config_helpers.py) returns the newer value outright when the two
+# sides are not both lists, so a config that writes `esphome: on_boot:` as a mapping replaces every
+# module's boot automations. That shipped once: devices booted without announcing their firmware
+# version and without the OTA rollback watchdog. The SDK's boot actions belong under `sdk_boot:`,
+# which no device config writes.
 #
 # Usage:
 #   check-automation-syntax.sh [ROOT]   # scan ROOT/modules and ROOT/hardware (default: repo root)
@@ -77,7 +87,7 @@ read -r -d '' AWK_PROG <<'AWK' || true
   if (keytext ~ /^['"]/) { q = substr(keytext, 1, 1); keytext = substr(keytext, 2) }
 
   # on_* key? (any automation-shaped name; deliberately not a fixed allow-list)
-  if (match(keytext, /^on_[a-z0-9_]+/)) {
+  if (match(keytext, /^(on_[a-z0-9_]+|sdk_boot)/)) {
     key_name = substr(keytext, 1, RLENGTH)
     after    = substr(keytext, RLENGTH + 1)
     if (q != "") {
@@ -86,6 +96,10 @@ read -r -d '' AWK_PROG <<'AWK' || true
     }
     if (after !~ /^[ \t]*:/) { next }          # no mapping colon -> a scalar like `on_foo` in a value
     sub(/^[ \t]*:/, "", after)                 # drop optional whitespace and the colon
+    if (key_name == "on_boot") {
+      printf "%s:%d: on_boot belongs to the device config, which can replace it; put SDK boot actions under sdk_boot:\n", FILENAME, FNR
+      fail = 1
+    }
     rest = after
     sub(/^[ \t]+/, "", rest)                   # trim leading whitespace
     sub(/^[&!][^ \t]+[ \t]*/, "", rest)        # strip a leading YAML anchor (&x) or tag (!x)
@@ -134,11 +148,11 @@ self_test() {
   # GOOD fixture: sequence form for a spread of triggers well beyond on_boot/on_connect.
   mkdir -p "$tmp/modules" "$tmp/hardware"
   cat >"$tmp/modules/good.yaml" <<'YAML'
+sdk_boot:
+  - priority: 600
+    then:
+      - logger.log: booted
 esphome:
-  on_boot:
-    - priority: 600
-      then:
-        - logger.log: booted
   on_shutdown:
     - then:
         - logger.log: bye
@@ -188,7 +202,7 @@ YAML
 
   # BAD fixtures: mapping form, one per trigger, each proven to fail on its own.
   local trig
-  for trig in on_disconnect on_message on_press on_error on_boot; do
+  for trig in on_disconnect on_message on_press on_error on_boot sdk_boot; do
     rm -f "$tmp/modules/bad.yaml"
     cat >"$tmp/modules/bad.yaml" <<YAML
 component:
@@ -204,6 +218,21 @@ YAML
     fi
   done
   rm -f "$tmp/modules/bad.yaml"
+
+  # BAD fixture: a module writing esphome: on_boot, even in the list form.
+  cat >"$tmp/modules/bad_on_boot.yaml" <<'YAML'
+esphome:
+  on_boot:
+    - priority: 600
+      then:
+        - logger.log: replaced by a device config's mapping-form on_boot
+YAML
+  if scan_root "$tmp" >/dev/null 2>&1; then
+    echo "self-test: FAILED — a module's list-form on_boot was NOT rejected"; rc=1
+  else
+    echo "self-test: PASS on bad fixture (module on_boot rejected) — ok"
+  fi
+  rm -f "$tmp/modules/bad_on_boot.yaml"
 
   # BAD fixture: inline flow mapping form.
   cat >"$tmp/modules/bad_flow.yaml" <<'YAML'
