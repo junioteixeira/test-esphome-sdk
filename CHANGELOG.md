@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/junioteixeira/test-esphome-sdk/compare/v0.4.0...v0.4.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **sdk:** run the SDK's boot actions from sdk_boot, which a device's on_boot cannot replace ([4b35e0d](https://github.com/junioteixeira/test-esphome-sdk/commit/4b35e0d453abcd975bebaecd76d3d48d894b33c6))
+* **sdk:** run the SDK's boot actions from sdk_boot, which a device's on_boot cannot replace ([72413ab](https://github.com/junioteixeira/test-esphome-sdk/commit/72413ab7715989b50f4f5a5cf02dbd597d791a8d))
+
+
+### Documentation
+
+* **readme:** why the SDK's boot actions run from sdk_boot ([4faa1e7](https://github.com/junioteixeira/test-esphome-sdk/commit/4faa1e7755b244c7bd7f9630ab7478353e8c3118))
+
 ## [0.4.0](https://github.com/junioteixeira/test-esphome-sdk/compare/v0.3.4...v0.4.0) (2026-10-04)
 
 
