@@ -14,18 +14,23 @@
 # the guard in components/ack_button/button/__init__.py to plain string equality makes
 # this config validate, and this gate goes red.
 #
-# The component is sourced locally, not through modules/ack_button.yaml: that module
-# fetches over git, which would fail here for the wrong reason and hide a removed guard.
-substitutions:
-  device_name: neg-device
-  firmware_version: "0.0.0-test"
-  wifi_ssid: test-ssid
-  wifi_password: test-wifi-password
+# The component is sourced locally, and the device around it is written out here rather than
+# imported from modules/: every SDK module that fetches over git (ack_button.yaml, and core.yaml for
+# sdk_boot) would fail here for the wrong reason and hide a removed guard.
+esphome:
+  name: neg-device
 
 esp32:
   board: esp32dev
   framework:
     type: arduino
+
+wifi:
+  ssid: test-ssid
+  password: test-wifi-password
+
+mqtt:
+  broker: 0.0.0.0
 
 external_components:
   - source:
@@ -38,9 +43,3 @@ button:
     name: "Wildcard Looping Button"
     state_topic: neg-device/acks/pressed
     command_topic: neg-device/acks/+
-
-packages:
-  core: !include { file: ../../modules/core.yaml, vars: {sdk_ref: local-test} }
-  wifi: !include { file: ../../modules/wifi.yaml, vars: {sdk_ref: local-test} }
-  mqtt: !include { file: ../../modules/criotive_mqtt.yaml, vars: {sdk_ref: local-test} }
-  ota: !include { file: ../../modules/ota.yaml, vars: {sdk_ref: local-test} }

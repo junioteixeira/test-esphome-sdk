@@ -1,0 +1,50 @@
+# Fixture: the recommended bundle plus a device `esphome: on_boot` written as a single MAPPING, the
+# form ESPHome documents for one automation. Package merging puts the device's config over the
+# modules, and merge_config returns the device's mapping outright instead of adding to a list, so
+# every module `on_boot` is replaced. A module that armed something from `esphome: on_boot` would
+# lose it here with no warning. The SDK's boot actions live under `sdk_boot:` so this config keeps
+# them; `esphome config` on it shows the device's on_boot next to core's and ota's sdk_boot
+# automations, and release CI compiles it.
+substitutions:
+  device_name: on-boot-mapping-testdev
+  firmware_version: "0.0.0-test"
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - light.turn_on: status_light
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: ${framework_variant}
+
+output:
+  - platform: gpio
+    id: status_output
+    pin: GPIO4
+
+light:
+  - platform: binary
+    id: status_light
+    name: "Status Light"
+    output: status_output
+
+packages:
+  criotive:
+    url: https://github.com/junioteixeira/test-esphome-sdk
+    ref: __SDK_REF__
+    files:
+      - path: modules/core.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ciotcfg.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/wifi.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/criotive_mqtt.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/ota.yaml
+        vars: {sdk_ref: __SDK_REF__}
+      - path: modules/improv_serial.yaml
+        vars: {sdk_ref: __SDK_REF__}

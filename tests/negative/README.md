@@ -17,13 +17,19 @@ Two kinds of rule live here:
   first: an `ack_button` whose acknowledgement would land back on its own subscription must not
   validate. These are named after the component and the invariant, never `omit_*`, so the parity
   gate keeps ignoring them. They source the component through a **local** `external_components`
-  path rather than `modules/ack_button.yaml`, because that module fetches over git — a fixture that
-  failed on an unreachable ref would pass this suite while proving nothing.
+  path and write the rest of the device out in full, importing no module: `modules/ack_button.yaml`
+  fetches the component over git, and so does `core.yaml` (for `sdk_boot`) — a fixture that failed
+  on an unreachable ref would pass this suite while proving nothing.
 
 Unlike the positive fixtures in `tests/validate/`, these import the modules with a **local
 `!include`** (`../../modules/*.yaml`) rather than the GitHub `packages:` path. That keeps them
 hermetic — they exercise the contract with no network fetch and no `__SDK_REF__` materialization, so
 they run identically locally and in CI (`check-sdk-ref.sh` does not scan this directory).
+
+The `local-test` ref they pass exists on no remote, so a fixture must fail **before** ESPHome loads
+`external_components` — at substitution time, through the guard idiom — or it fails on the fetch
+instead of on its rule. `check-negative.sh` reports any fixture that started a git clone as a
+failure of the suite, not a pass.
 
 Every fixture except `omit_sdk_ref.yaml` threads `vars: {sdk_ref: local-test}` into the includes,
 because `sdk_ref` is itself a required substitution (guarded in `core.yaml`): without it, *every*

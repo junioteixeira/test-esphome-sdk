@@ -15,11 +15,19 @@ safe_mode:
   # Must exceed the 300s rollback watchdog.
   boot_is_good_after: 330s
 
-esphome:
-  on_boot:
-    - priority: 600
-      then:
-        - script.execute: script_rollback
+external_components:
+  - source:
+      type: git
+      url: https://github.com/junioteixeira/test-esphome-sdk
+      ref: ${sdk_ref}
+    components: [sdk_boot]
+
+# Armed from `sdk_boot`, not `esphome: on_boot`: a device config's mapping-form
+# `on_boot` replaces that list, and a fresh image would then run unguarded.
+sdk_boot:
+  - priority: 600
+    then:
+      - script.execute: script_rollback
 
 logger:
   logs:
